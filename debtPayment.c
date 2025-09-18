@@ -181,9 +181,8 @@ void displayAllPayments() {
     printf("--------------------------------------------------\n");
     printf("ID\tName\t\tAmount\t\tDate\n");
     printf("--------------------------------------------------\n");
-
+    (fgets(line, sizeof(line), fp));
     while (fgets(line, sizeof(line), fp)) {
-        (fgets(line, sizeof(line), fp));
         char paymentID[20], payerName[50], paymentDate[15];
         float fineAmount;
         sscanf(line, "%[^,],%[^,],%f,%s", paymentID, payerName, &fineAmount, paymentDate);
@@ -240,4 +239,5 @@ int main() {
     fclose(fp);
     displayMenu();
     return 0;
+
 }
