@@ -144,19 +144,27 @@ void search() {
 }
 
 void addPayment() {
-    FILE *fp = fopen("debtPayment.csv", "a");
-    if (fp == NULL) {
-        printf("ไม่พบไฟล์\n");
-        return;
-    }
-
     char paymentID[20];
     char payerName[50];
     float fineAmount;
     char paymentDate[15];
 
-    printf("Enter Payment ID: ");
-    scanf("%s", paymentID);
+    int nextNum = 0;
+    FILE *fpRead = fopen("debtPayment.csv", "r");
+    if (fpRead != NULL) {
+        char line[256];
+        int lastNum = 0;
+        while (fgets(line, sizeof(line), fpRead)) {
+            char pid[20];
+            if (sscanf(line, "%[^,],", pid) == 1) {
+            }
+        }
+        fclose(fpRead);
+        nextNum = lastNum + 1;
+    }
+
+    sprintf(paymentID, "%03d", nextNum);
+    printf("Your Payment ID is (***จำให้ได้***): %s\n", paymentID);
     printf("Enter Payer Name: ");
     scanf("%s", payerName);
     printf("Enter Fine Amount: ");
@@ -164,9 +172,15 @@ void addPayment() {
     printf("Enter Payment Date (YYYY-MM-DD): ");
     scanf("%s", paymentDate);
 
+    FILE *fp = fopen("debtPayment.csv", "a");
+    if (fp == NULL) {
+        printf("No payment data found.\n");
+        return;
+    }
+
     fprintf(fp, "%s,%s,%.2f,%s\n", paymentID, payerName, fineAmount, paymentDate);
     fclose(fp);
-    printf("Payment added successfully!\n");
+    printf("Payment %s added successfully!\n", paymentID);
 }
 
 void displayAllPayments() {
@@ -195,7 +209,7 @@ void displayAllPayments() {
 void displayMenu() {
     int choice;
     do {
-        printf("\nDebt Payment Management System\n");
+        printf("\nDebt Payment Management\n");
         printf("1. Add Payment\n");
         printf("2. Display All Payments\n");
         printf("3. Search Payments\n");
@@ -225,7 +239,7 @@ void displayMenu() {
                 printf("Exiting the program.\n");
                 break;
             default:
-                printf("Invalid choice. Please try again.\n");
+                printf("Invalid choice, Please try again.\n");
         }
     } while (choice != 6);
 }
@@ -239,5 +253,4 @@ int main() {
     fclose(fp);
     displayMenu();
     return 0;
-
 }
