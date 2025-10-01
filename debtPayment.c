@@ -26,7 +26,7 @@ void delete() {
         char paymentID[20], payerName[50], paymentDate[15];
         float fineAmount;
         sscanf(line, "%[^,],%[^,],%f,%s", paymentID, payerName, &fineAmount, paymentDate);
-        if (strcmp(paymentID, deleteID) == 0 || strcmp(payerName, deleteID) == 0) {
+        if (strcasecmp(paymentID, deleteID) == 0 || strcasecmp(payerName, deleteID) == 0) {
             found = 1;
             continue;
         }
@@ -70,7 +70,7 @@ void update() {
         char paymentID[20], payerName[50], paymentDate[15];
         float fineAmount;
         sscanf(line, "%[^,],%[^,],%f,%s", paymentID, payerName, &fineAmount, paymentDate);
-        if (strcmp(paymentID, updateID) == 0) {
+        if (strcasecmp(paymentID, updateID) == 0) {
             printf("Enter new Payer Name: ");
             scanf("%s", payerName);
             printf("Enter new Fine Amount: ");
@@ -79,7 +79,7 @@ void update() {
             scanf("%s", paymentDate);
             fprintf(tempFp, "%s,%s,%.2f,%s\n", paymentID, payerName, fineAmount, paymentDate);
             found = 1;
-        } else if(strcmp(payerName,updateID)==0) {
+        } else if(strcasecmp(payerName,updateID) == 0) {
             printf("Enter new Payer Name: ");
             scanf("%s", payerName);
             printf("Enter new Fine Amount: ");
@@ -123,12 +123,12 @@ void search() {
         char paymentID[20], payerName[50], paymentDate[15];
         float fineAmount;
         sscanf(line, "%[^,],%[^,],%f,%s", paymentID, payerName, &fineAmount, paymentDate);
-        if (strcmp(paymentID, searchID) == 0) {
+        if (strcasecmp(paymentID, searchID) == 0) {
             printf("Payment Found:\n");
             printf("ID: %s\nName: %s\nAmount: %.2f\nDate: %s\n", paymentID, payerName, fineAmount, paymentDate);
             found = 1;
             break;
-        }else if(strcmp(payerName, searchID) == 0){
+        }else if(strcasecmp(payerName, searchID) == 0){
             printf("Payment Found:\n");
             printf("ID: %s\nName: %s\nAmount: %.2f\nDate: %s\n", paymentID, payerName, fineAmount, paymentDate);
             found = 1;
@@ -164,7 +164,7 @@ void addPayment() {
     }
 
     sprintf(paymentID, "%03d", nextNum);
-    printf("Your Payment ID is (***จำให้ได้***): %s\n", paymentID);
+    printf("Your Payment ID is (***Remember***): %s\n", paymentID);
     printf("Enter Payer Name: ");
     scanf("%s", payerName);
     printf("Enter Fine Amount: ");
