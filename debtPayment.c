@@ -147,7 +147,7 @@ void addPayment() {
     char paymentID[20];
     char payerName[50];
     float fineAmount;
-    char paymentDate[15];
+    char paymentDate[50];
 
     int nextNum = 0;
     FILE *fpRead = fopen("debtPayment.csv", "r");
@@ -156,7 +156,11 @@ void addPayment() {
         int lastNum = 0;
         while (fgets(line, sizeof(line), fpRead)) {
             char pid[20];
-            if (sscanf(line, "%[^,],", pid) == 1) {
+            if (sscanf(line, "%[^,],", pid) == 1)  {
+                int num = atoi(pid);
+                if (num > lastNum) {
+                    lastNum = num;
+                }
             }
         }
         fclose(fpRead);
@@ -254,4 +258,3 @@ int main() {
     displayMenu();
     return 0;
 }
-
