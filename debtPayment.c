@@ -2,10 +2,25 @@
 #include <string.h>
 #include <stdlib.h>
 
+static void read_line(char *buf, int size) {
+    if (fgets(buf, size, stdin) != NULL) {
+        size_t len = strlen(buf);
+        if (len > 0 && buf[len-1] == '\n') buf[len-1] = '\0';
+    } else {
+        buf[0] = '\0';
+    }
+}
+
+static void flush_stdin(void) {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF) { }
+}
+
 void delete() {
-    char deleteID[20];
+    char deleteID[50];
     printf("Enter Payment ID or Name to delete: ");
-    scanf("%s", deleteID);
+    flush_stdin();
+    read_line(deleteID, sizeof(deleteID));
 
     FILE *fp = fopen("debtPayment.csv", "r");
     if (fp == NULL) {
@@ -13,43 +28,86 @@ void delete() {
         return;
     }
 
-    FILE *tempFp = fopen("temp.csv", "w");
-    if (tempFp == NULL) {
-        printf("Error creating temporary file.\n");
-        fclose(fp);
+    char lines[1000][256];
+    int line_count = 0;
+    while (line_count < 1000 && fgets(lines[line_count], sizeof(lines[line_count]), fp)) line_count++;
+    fclose(fp);
+
+    int matches[1000];
+    int match_count = 0;
+    for (int i = 0; i < line_count; ++i) {
+        char paymentID[64], payerName[128], paymentDate[64];
+        float fineAmount;
+        if (sscanf(lines[i], "%63[^,],%127[^,],%f,%63s", paymentID, payerName, &fineAmount, paymentDate) < 1) continue;
+        if (strcasecmp(paymentID, deleteID) == 0 || strcasecmp(payerName, deleteID) == 0) {
+            matches[match_count++] = i;
+        }
+    }
+
+    if (match_count == 0) {
+        printf("Payment ID or Name %s not found.\n", deleteID);
         return;
     }
 
-    char line[100];
-    int found = 0;
-    while (fgets(line, sizeof(line), fp)) {
-        char paymentID[20], payerName[50], paymentDate[15];
+    printf("Found %d matching record(s):\n", match_count);
+    for (int i = 0; i < match_count; ++i) {
+        int idx = matches[i];
+        char paymentID[64], payerName[128], paymentDate[64];
         float fineAmount;
-        sscanf(line, "%[^,],%[^,],%f,%s", paymentID, payerName, &fineAmount, paymentDate);
-        if (strcasecmp(paymentID, deleteID) == 0 || strcasecmp(payerName, deleteID) == 0) {
-            found = 1;
-            continue;
-        }
-        fprintf(tempFp, "%s", line);
+        sscanf(lines[idx], "%63[^,],%127[^,],%f,%63s", paymentID, payerName, &fineAmount, paymentDate);
+        printf("%d) ID:%s | Name:%s | Amount:%.2f | Date:%s\n", i+1, paymentID, payerName, fineAmount, paymentDate);
     }
 
-    fclose(fp);
+    printf("Choose action: (a=delete all, s=select, n=cancel): ");
+    char action[4];
+    scanf(" %3s", action);
+
+    int to_delete[1000] = {0};
+    if (action[0] == 'a' || action[0] == 'A') {
+        for (int i = 0; i < match_count; ++i) to_delete[matches[i]] = 1;
+    } else if (action[0] == 's' || action[0] == 'S') {
+        flush_stdin();
+        char selbuf[256];
+        printf("Enter numbers separated by space (e.g. 1 2 3): ");
+        read_line(selbuf, sizeof(selbuf));
+        char *tok = strtok(selbuf, " \t,;");
+        while (tok) {
+            int num = atoi(tok);
+            if (num >= 1 && num <= match_count) {
+                int orig_idx = matches[num-1];
+                to_delete[orig_idx] = 1;
+            }
+            tok = strtok(NULL, " \t,;");
+        }
+    } else {
+        printf("Cancelled. No changes made.\n");
+        return;
+    }
+
+    FILE *tempFp = fopen("temp.csv", "w");
+    if (!tempFp) { printf("Error creating temp file.\n"); return; }
+    int deleted = 0;
+    for (int i = 0; i < line_count; ++i) {
+        if (to_delete[i]) { deleted++; continue; }
+        fputs(lines[i], tempFp);
+    }
     fclose(tempFp);
 
-    if (found) {
+    if (deleted > 0) {
         remove("debtPayment.csv");
         rename("temp.csv", "debtPayment.csv");
-        printf("Payment ID or Name %s deleted successfully.\n", deleteID);
+        printf("Deleted %d record(s).\n", deleted);
     } else {
         remove("temp.csv");
-        printf("Payment ID or Name %s not found.\n", deleteID);
+        printf("No records selected.\n");
     }
 }
 
 void update() {
-    char updateID[20];
+    char updateID[50];
     printf("Enter Payment ID or Name to update: ");
-    scanf("%s", updateID);
+    flush_stdin();
+    read_line(updateID, sizeof(updateID));
 
     FILE *fp = fopen("debtPayment.csv", "r");
     if (fp == NULL) {
@@ -57,59 +115,114 @@ void update() {
         return;
     }
 
-    FILE *tempFp = fopen("temp.csv", "w");
-    if (tempFp == NULL) {
-        printf("Error creating temporary file.\n");
-        fclose(fp);
+    char lines[1000][256];
+    int line_count = 0;
+    while (line_count < 1000 && fgets(lines[line_count], sizeof(lines[line_count]), fp)) line_count++;
+    fclose(fp);
+
+    int matches[1000];
+    int match_count = 0;
+    for (int i = 0; i < line_count; ++i) {
+        char paymentID[64], payerName[128], paymentDate[64];
+        float fineAmount;
+        if (sscanf(lines[i], "%63[^,],%127[^,],%f,%63s", paymentID, payerName, &fineAmount, paymentDate) < 1) continue;
+        if (strcasecmp(paymentID, updateID) == 0 || strcasecmp(payerName, updateID) == 0) matches[match_count++] = i;
+    }
+
+    if (match_count == 0) {
+        printf("Payment ID or Name %s not found.\n", updateID);
         return;
     }
 
-    char line[100];
-    int found = 0;
-    while (fgets(line, sizeof(line), fp)) {
-        char paymentID[20], payerName[50], paymentDate[15];
+    printf("Found %d matching record(s):\n", match_count);
+    for (int i = 0; i < match_count; ++i) {
+        int idx = matches[i];
+        char paymentID[64], payerName[128], paymentDate[64];
         float fineAmount;
-        sscanf(line, "%[^,],%[^,],%f,%s", paymentID, payerName, &fineAmount, paymentDate);
-        if (strcasecmp(paymentID, updateID) == 0) {
-            printf("Enter new Payer Name: ");
-            scanf("%s", payerName);
-            printf("Enter new Fine Amount: ");
-            scanf("%f", &fineAmount);
-            printf("Enter new Payment Date (YYYY-MM-DD): ");
-            scanf("%s", paymentDate);
-            fprintf(tempFp, "%s,%s,%.2f,%s\n", paymentID, payerName, fineAmount, paymentDate);
-            found = 1;
-        } else if(strcasecmp(payerName,updateID) == 0) {
-            printf("Enter new Payer Name: ");
-            scanf("%s", payerName);
-            printf("Enter new Fine Amount: ");
-            scanf("%f", &fineAmount);
-            printf("Enter new Payment Date (YYYY-MM-DD): ");
-            scanf("%s", paymentDate);
-            fprintf(tempFp, "%s,%s,%.2f,%s\n", paymentID, payerName, fineAmount, paymentDate);
-            found = 1;
-        } else {
-            fprintf(tempFp, "%s", line);
-        }
+        sscanf(lines[idx], "%63[^,],%127[^,],%f,%63s", paymentID, payerName, &fineAmount, paymentDate);
+        printf("%d) ID:%s | Name:%s | Amount:%.2f | Date:%s\n", i+1, paymentID, payerName, fineAmount, paymentDate);
     }
 
-    fclose(fp);
-    fclose(tempFp);
+    printf("Choose action: (a=update all, s=select, n=cancel): ");
+    char action[4];
+    scanf(" %3s", action);
 
-    if (found) {
+    int to_update[1000] = {0};
+    if (action[0] == 'a' || action[0] == 'A') {
+        flush_stdin();
+        char newName[128];
+        char newDate[64];
+        float newAmount;
+        printf("Enter new Payer Name (will apply to all matches): ");
+        read_line(newName, sizeof(newName));
+        printf("Enter new Fine Amount: ");
+        scanf("%f", &newAmount);
+        flush_stdin();
+        printf("Enter new Payment Date (YYYY-MM-DD): ");
+        read_line(newDate, sizeof(newDate));
+        for (int i = 0; i < match_count; ++i) to_update[matches[i]] = 1;
+        FILE *tempFp = fopen("temp.csv", "w");
+        if (!tempFp) { printf("Error creating temp file.\n"); return; }
+        for (int i = 0; i < line_count; ++i) {
+            if (to_update[i]) {
+                char paymentID[64];
+                sscanf(lines[i], "%63[^,],%*[^,],%*f,%*s", paymentID);
+                fprintf(tempFp, "%s,%s,%.2f,%s\n", paymentID, newName, newAmount, newDate);
+            } else fputs(lines[i], tempFp);
+        }
+        fclose(tempFp);
         remove("debtPayment.csv");
         rename("temp.csv", "debtPayment.csv");
-        printf("Payment ID %s updated successfully.\n", updateID);
+        printf("Updated %d record(s).\n", match_count);
+        return;
+    } else if (action[0] == 's' || action[0] == 'S') {
+        flush_stdin();
+        char selbuf[256];
+        printf("Enter numbers separated by space (e.g. 1 2 3): ");
+        read_line(selbuf, sizeof(selbuf));
+        char *tok = strtok(selbuf, " \t,;");
+        while (tok) {
+            int num = atoi(tok);
+            if (num >= 1 && num <= match_count) {
+                to_update[matches[num-1]] = 1;
+            }
+            tok = strtok(NULL, " \t,;");
+        }
+        FILE *tempFp = fopen("temp.csv", "w");
+        if (!tempFp) { printf("Error creating temp file.\n"); return; }
+        for (int i = 0; i < line_count; ++i) {
+            if (!to_update[i]) { fputs(lines[i], tempFp); continue; }
+            char paymentID[64], payerName[128], paymentDate[64];
+            float fineAmount;
+            sscanf(lines[i], "%63[^,],%127[^,],%f,%63s", paymentID, payerName, &fineAmount, paymentDate);
+            printf("Updating record: ID:%s | Name:%s | Amount:%.2f | Date:%s\n", paymentID, payerName, fineAmount, paymentDate);
+            char newName[128];
+            char newDate[64];
+            float newAmount;
+            printf("Enter new Payer Name: ");
+            read_line(newName, sizeof(newName));
+            printf("Enter new Fine Amount: ");
+            scanf("%f", &newAmount);
+            flush_stdin();
+            printf("Enter new Payment Date (YYYY-MM-DD): ");
+            read_line(newDate, sizeof(newDate));
+            fprintf(tempFp, "%s,%s,%.2f,%s\n", paymentID, newName, newAmount, newDate);
+        }
+        fclose(tempFp);
+        remove("debtPayment.csv");
+        rename("temp.csv", "debtPayment.csv");
+        printf("Selected records updated.\n");
+        return;
     } else {
-        remove("temp.csv");
-        printf("Payment ID %s not found.\n", updateID);
+        printf("Cancelled. No changes made.\n");
+        return;
     }
 }
 
 void search() {
     char searchID[20];
     printf("Enter Payment ID or Name to search: ");
-    scanf("%s", searchID);
+    scanf("%19s", searchID);
 
     FILE *fp = fopen("debtPayment.csv", "r");
     if (fp == NULL) {
@@ -117,18 +230,15 @@ void search() {
         return;
     }
 
-    char line[100];
+    char line[256];
     int found = 0;
     while (fgets(line, sizeof(line), fp)) {
-        char paymentID[20], payerName[50], paymentDate[15];
+        char paymentID[50], payerName[50], paymentDate[50];
         float fineAmount;
-        sscanf(line, "%[^,],%[^,],%f,%s", paymentID, payerName, &fineAmount, paymentDate);
-        if (strcasecmp(paymentID, searchID) == 0) {
-            printf("Payment Found:\n");
-            printf("ID: %s\nName: %s\nAmount: %.2f\nDate: %s\n", paymentID, payerName, fineAmount, paymentDate);
-            found = 1;
-            break;
-        }else if(strcasecmp(payerName, searchID) == 0){
+        if (sscanf(line, "%19[^,],%49[^,],%f,%19s", paymentID, payerName, &fineAmount, paymentDate) < 1) {
+            continue;
+        }
+        if (strcasecmp(paymentID, searchID) == 0 || strcasecmp(payerName, searchID) == 0) {
             printf("Payment Found:\n");
             printf("ID: %s\nName: %s\nAmount: %.2f\nDate: %s\n", paymentID, payerName, fineAmount, paymentDate);
             found = 1;
@@ -144,7 +254,7 @@ void search() {
 }
 
 void addPayment() {
-    char paymentID[20];
+    char paymentID[50];
     char payerName[50];
     float fineAmount;
     char paymentDate[50];
@@ -194,17 +304,27 @@ void displayAllPayments() {
         return;
     }
 
-    char line[100];
+    char line[512];
+    /* skip header line if present */
+    if (!fgets(line, sizeof(line), fp)) {
+        fclose(fp);
+        printf("No payment data found.\n");
+        return;
+    }
+
     printf("\nAll Payments:\n");
-    printf("--------------------------------------------------\n");
-    printf("ID\tName\t\tAmount\t\tDate\n");
-    printf("--------------------------------------------------\n");
-    (fgets(line, sizeof(line), fp));
+    printf("-------------------------------------------------------------------------------\n");
+    printf("%-6s %-25s %12s %12s\n", "ID", "Name", "Amount", "Date");
+    printf("-------------------------------------------------------------------------------\n");
+
     while (fgets(line, sizeof(line), fp)) {
-        char paymentID[20], payerName[50], paymentDate[15];
+        char paymentID[64], payerName[128], paymentDate[32];
         float fineAmount;
-        sscanf(line, "%[^,],%[^,],%f,%s", paymentID, payerName, &fineAmount, paymentDate);
-        printf("%s\t%-15s\t%.2f\t\t%s\n", paymentID, payerName, fineAmount, paymentDate);
+
+        if (sscanf(line, "%63[^,],%127[^,],%f,%31s", paymentID, payerName, &fineAmount, paymentDate) != 4) {
+            continue;
+        }
+        printf("%-6s %-25s %12.2f %12s\n", paymentID, payerName, fineAmount, paymentDate);
     }
 
     fclose(fp);
@@ -248,6 +368,7 @@ void displayMenu() {
     } while (choice != 6);
 }
 
+#ifndef UNIT_TEST
 int main() {
     FILE *fp = fopen("debtPayment.csv", "r");
     if (fp == NULL) {
@@ -258,3 +379,4 @@ int main() {
     displayMenu();
     return 0;
 }
+#endif
