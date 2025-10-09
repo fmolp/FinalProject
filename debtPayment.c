@@ -338,7 +338,7 @@ void displayAllPayments() {
         if (sscanf(line, "%63[^,],%127[^,],%f,%31s", paymentID, payerName, &fineAmount, paymentDate) != 4) {
             continue;
         }
-        printf("%-6s %-25s %12.2f %12s\n", paymentID, payerName, fineAmount, paymentDate);
+        printf("%-6s %-25s %12.2f \t%12s\n", paymentID, payerName, fineAmount, paymentDate);
     }
 
     fclose(fp);
