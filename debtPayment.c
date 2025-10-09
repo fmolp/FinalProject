@@ -2,6 +2,9 @@
 #include <string.h>
 #include <stdlib.h>
 
+static int userIsStaff = 0;
+static const char STAFF_PASSWORD[] = "flukelnwza";
+
 static void read_line(char *buf, int size) {
     if (fgets(buf, size, stdin) != NULL) {
         size_t len = strlen(buf);
@@ -17,6 +20,10 @@ static void flush_stdin(void) {
 }
 
 void delete() {
+    if (!userIsStaff) {
+        printf("Permission denied: only staff can delete records.\n");
+        return;
+    }
     char deleteID[50];
     printf("Enter Payment ID or Name to delete: ");
     flush_stdin();
@@ -220,6 +227,10 @@ void update() {
 }
 
 void search() {
+    if (!userIsStaff) {
+        printf("Permission denied: only staff can search records.\n");
+        return;
+    }
     char searchID[20];
     printf("Enter Payment ID or Name to search: ");
     scanf("%19s", searchID);
@@ -239,7 +250,7 @@ void search() {
             continue;
         }
         if (strcasecmp(paymentID, searchID) == 0 || strcasecmp(payerName, searchID) == 0) {
-            printf("Payment Found:\n");
+            printf("\nPayment Found!\n");
             printf("ID: %s\nName: %s\nAmount: %.2f\nDate: %s\n", paymentID, payerName, fineAmount, paymentDate);
             found = 1;
             break;
@@ -298,6 +309,10 @@ void addPayment() {
 }
 
 void displayAllPayments() {
+    if (!userIsStaff) {
+        printf("Permission denied: only staff can view all payments.\n");
+        return;
+    }
     FILE *fp = fopen("debtPayment.csv", "r");
     if (fp == NULL) {
         printf("No payment data found.\n");
@@ -305,7 +320,6 @@ void displayAllPayments() {
     }
 
     char line[512];
-    /* skip header line if present */
     if (!fgets(line, sizeof(line), fp)) {
         fclose(fp);
         printf("No payment data found.\n");
@@ -333,39 +347,42 @@ void displayAllPayments() {
 void displayMenu() {
     int choice;
     do {
-        printf("\nDebt Payment Management\n");
-        printf("1. Add Payment\n");
-        printf("2. Display All Payments\n");
-        printf("3. Search Payments\n");
-        printf("4. Update Payments\n");
-        printf("5. Delete Payments\n");
-        printf("6. Exit\n");
-        printf("Enter your choice: ");
-        scanf("%d", &choice);
+        if (userIsStaff) {
+            printf("\nDebt Payment Management (Staff)\n");
+            printf("1. Add Payment\n");
+            printf("2. Display All Payments\n");
+            printf("3. Search Payments\n");
+            printf("4. Update Payments\n");
+            printf("5. Delete Payments\n");
+            printf("6. Exit\n");
+            printf("Enter your choice: ");
+            if (scanf("%d", &choice) != 1) { flush_stdin(); choice = -1; }
 
-        switch (choice) {
-            case 1:
-                addPayment();
-                break;
-            case 2:
-                displayAllPayments();
-                break;
-            case 3:
-                search();
-                break;
-            case 4:
-                update();
-                break;
-            case 5:
-                delete();
-                break;
-            case 6:
-                printf("Exiting the program.\n");
-                break;
-            default:
-                printf("Invalid choice, Please try again.\n");
+            switch (choice) {
+                case 1: addPayment(); break;
+                case 2: displayAllPayments(); break;
+                case 3: search(); break;
+                case 4: update(); break;
+                case 5: delete(); break;
+                case 6: printf("Exiting the program.\n"); break;
+                default: printf("Invalid choice, Please try again.\n");
+            }
+        } else {
+            printf("\nDebt Payment Management (Customer)\n");
+            printf("1. Add Payment\n");
+            printf("2. Update Payments\n");
+            printf("3. Exit\n");
+            printf("Enter your choice: ");
+            if (scanf("%d", &choice) != 1) { flush_stdin(); choice = -1; }
+
+            switch (choice) {
+                case 1: addPayment(); break;
+                case 2: update(); break;
+                case 3: printf("Exiting the program.\n"); break;
+                default: printf("Invalid choice, Please try again.\n");
+            }
         }
-    } while (choice != 6);
+    } while ((userIsStaff && choice != 6) || (!userIsStaff && choice != 3));
 }
 
 #ifndef UNIT_TEST
@@ -376,6 +393,33 @@ int main() {
         fprintf(fp, "PaymentID,PayerName,FineAmount,PaymentDate\n");
     }
     fclose(fp);
+    int roleChoice = 0;
+    do {
+        printf("Select role:\n1) Staff\n2) Customer\nEnter choice: ");
+        if (scanf("%d", &roleChoice) != 1) { flush_stdin(); roleChoice = 0; continue; }
+        flush_stdin();
+    } while (roleChoice != 1 && roleChoice != 2);
+
+    if (roleChoice == 1) {
+        char passbuf[128];
+        int attempt;
+        int auth_ok = 0;
+        for (attempt = 1; attempt <= 3; ++attempt) {
+            printf("Enter staff password (attempt %d of 3): ", attempt);
+            read_line(passbuf, sizeof(passbuf));
+            if (strcmp(passbuf, STAFF_PASSWORD) == 0) { auth_ok = 1; break; }
+            printf("Incorrect password.\n");
+        }
+        if (auth_ok) {
+            printf("Authenticated as staff.\n");
+            userIsStaff = 1;
+        } else {
+            printf("Authentication failed. Continuing as customer.\n");
+            userIsStaff = 0;
+        }
+    } else {
+        userIsStaff = 0;
+    }
     displayMenu();
     return 0;
 }
