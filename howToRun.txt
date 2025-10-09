@@ -1,6 +1,6 @@
-How to run
-1.Download debtpayment.exe.
-2.Then run debtpayment.exe file.
+How to run.
+1.Download debtPayment.exe and debtPayment.csv.
+2.Then run debtPayment.exe file.
 3.The beginning of the program will have 2 roles to select. (Staff and Customer)
 4.Staff requires a password to access. (Password : flukelnwza)
 5.Customer do not requires.
